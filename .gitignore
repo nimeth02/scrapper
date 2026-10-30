@@ -1,0 +1,7 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Instagram browser session (cookies) written by the login MCP server
+data/

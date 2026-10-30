@@ -1,0 +1,1 @@
+"""Scrapper application package."""

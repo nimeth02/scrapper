@@ -1,0 +1,28 @@
+[project]
+name = "scrapper"
+version = "0.1.0"
+description = "Instagram MCP servers on Playwright, plus an LLM service that falls back across Gemini and Groq models"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain-core>=1.6,<2",
+    "langchain-google-genai>=4.4,<5",
+    "langchain-groq>=1.1,<2",
+    "langsmith",
+    "mcp>=1.10,<2",
+    "playwright>=1.50",
+    "pydantic-settings",
+    "python-dotenv",
+]
+
+[project.scripts]
+instagram-login-mcp = "app.servers.instagram_login:main"
+instagram-scraper-mcp = "app.servers.instagram_scraper:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

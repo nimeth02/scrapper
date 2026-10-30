@@ -1,0 +1,10 @@
+langchain-core>=1.6,<2
+langchain-google-genai>=4.4,<5
+langchain-groq>=1.1,<2
+langsmith
+pydantic-settings
+python-dotenv
+mcp>=1.10,<2
+playwright>=1.50
+pytest
+pytest-asyncio
