@@ -1,7 +1,7 @@
 [project]
 name = "scrapper"
 version = "0.1.0"
-description = "Instagram MCP servers on Playwright, plus an LLM service that falls back across Gemini and Groq models"
+description = "Instagram MCP servers on Playwright, an LLM service that falls back across Gemini and Groq models, and agents over both (hashtag Q&A, hashtag maps in LadybugDB)"
 requires-python = ">=3.11"
 dependencies = [
     "langchain-core>=1.6,<2",
@@ -11,12 +11,15 @@ dependencies = [
     "mcp>=1.10,<2",
     "playwright>=1.50",
     "pydantic-settings",
+    "real-ladybug>=0.15,<1",
     "python-dotenv",
 ]
 
 [project.scripts]
 instagram-login-mcp = "app.servers.instagram_login:main"
 instagram-scraper-mcp = "app.servers.instagram_scraper:main"
+instagram-web = "app.web.__main__:main"
+instagram-agent = "app.agent.__main__:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio"]

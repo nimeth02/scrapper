@@ -56,7 +56,7 @@ def split_gemini_base_url(url: str | None) -> tuple[str | None, str | None]:
     return url.rstrip("/") + "/", None
 
 
-def _gemini_models(settings: Settings, temperature: float) -> list[ModelCandidate]:
+def _gemini_models(settings: Settings, temperature: float, reasoning: bool = False) -> list[ModelCandidate]:
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     base_url, api_version = split_gemini_base_url(settings.gemini_base_url)
@@ -71,6 +71,10 @@ def _gemini_models(settings: Settings, temperature: float) -> list[ModelCandidat
         common["base_url"] = base_url
     if api_version:
         common["api_version"] = api_version
+    if reasoning and settings.llm_thinking_budget > 0:
+        # Return a summary of the model's thoughts as "reasoning" content blocks.
+        common["include_thoughts"] = True
+        common["thinking_budget"] = settings.llm_thinking_budget
 
     return [
         ModelCandidate(provider="gemini", model=name, chat_model=ChatGoogleGenerativeAI(model=name, **common))
@@ -78,7 +82,9 @@ def _gemini_models(settings: Settings, temperature: float) -> list[ModelCandidat
     ]
 
 
-def _groq_models(settings: Settings, temperature: float) -> list[ModelCandidate]:
+def _groq_models(settings: Settings, temperature: float, reasoning: bool = False) -> list[ModelCandidate]:
+    # Groq's reasoning models (gpt-oss, qwen3) return their reasoning by default; nothing to switch on.
+    # Setting reasoning_format would make the non-reasoning models reject every request.
     from langchain_groq import ChatGroq
 
     return [
@@ -100,7 +106,9 @@ def _groq_models(settings: Settings, temperature: float) -> list[ModelCandidate]
 _BUILDERS = {"gemini": _gemini_models, "groq": _groq_models}
 
 
-def build_candidates(settings: Settings | None = None, *, temperature: float | None = None) -> list[ModelCandidate]:
+def build_candidates(
+    settings: Settings | None = None, *, temperature: float | None = None, reasoning: bool = False
+) -> list[ModelCandidate]:
     """Return the ordered candidate list described in the module docstring."""
     settings = settings or get_settings()
     temperature = settings.llm_temperature if temperature is None else temperature
@@ -117,7 +125,7 @@ def build_candidates(settings: Settings | None = None, *, temperature: float | N
     candidates: list[ModelCandidate] = []
     for provider in order:
         if keys[provider]:
-            candidates.extend(_BUILDERS[provider](settings, temperature))
+            candidates.extend(_BUILDERS[provider](settings, temperature, reasoning))
 
     if not candidates:
         raise LLMConfigurationError("No LLM provider configured. Set GEMINI_API_KEY and/or GROQ_API_KEY in .env.")
@@ -131,8 +139,13 @@ def build_llm(
     *,
     temperature: float | None = None,
     health: HealthTracker | None = None,
+    reasoning: bool = False,
 ) -> FallbackChatModel:
-    """Build a fresh :class:`FallbackChatModel` (not cached)."""
+    """Build a fresh :class:`FallbackChatModel` (not cached).
+
+    ``reasoning=True`` asks the models to return their reasoning as well (Gemini: a summary of its
+    thoughts, within ``LLM_THINKING_BUDGET`` tokens), for callers that show it, such as the agent.
+    """
     settings = settings or get_settings()
     policy = FallbackPolicy(
         retries_per_model=settings.llm_retries_per_model,
@@ -140,7 +153,9 @@ def build_llm(
         unavailable_cooldown_seconds=settings.llm_unavailable_cooldown_seconds,
         health=health or _SHARED_HEALTH,
     )
-    return FallbackChatModel(candidates=build_candidates(settings, temperature=temperature), policy=policy)
+    return FallbackChatModel(
+        candidates=build_candidates(settings, temperature=temperature, reasoning=reasoning), policy=policy
+    )
 
 
 @lru_cache(maxsize=1)
@@ -150,6 +165,12 @@ def get_llm() -> FallbackChatModel:
     Use :func:`build_llm` when you need a different temperature for one call site.
     """
     return build_llm()
+
+
+@lru_cache(maxsize=1)
+def get_reasoning_llm() -> FallbackChatModel:
+    """Like :func:`get_llm`, but the models also return their reasoning (used by the agent)."""
+    return build_llm(reasoning=True)
 
 
 def primary_chat_model(llm: FallbackChatModel | None = None) -> BaseChatModel:

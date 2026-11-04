@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Hashtag Scout</title>
+<link rel="stylesheet" href="/static/styles.css?v=10">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap bar">
+    <div class="brand">Hashtag Scout</div>
+    <nav class="apptabs" id="appTabs">
+      <button class="apptab active" type="button" data-view="scout">Scout</button>
+      <button class="apptab" type="button" data-view="map">Hashtag map</button>
+    </nav>
+    <div class="session" id="session"><span class="dot"></span><span id="sessionText">Checking session…</span></div>
+  </div>
+</header>
+
+<main class="wrap" id="viewScout">
+  <section class="card agent" id="agentPanel">
+    <div class="agent-head">
+      <strong>Ask the agent</strong>
+      <span class="usub" id="agentModel">Checking the model…</span>
+    </div>
+    <div class="chat hidden" id="chat"></div>
+    <div class="examples" id="examples">
+      <button type="button" class="example">Who posts under #ceylontea? Crawl 48 posts and rank the accounts.</button>
+      <button type="button" class="example">Scrape #tea and #srilankatea, then tell me who comments most on those posts.</button>
+      <button type="button" class="example">Which hashtags are related to "ceylon tea", and which has the most posts?</button>
+    </div>
+    <form class="ask" id="askForm">
+      <textarea id="question" rows="2" placeholder="Ask in plain words… e.g. accounts posting under #tea, and who likes their posts"></textarea>
+      <div class="askbtns">
+        <button id="ask" class="btn primary" type="submit" disabled>Ask</button>
+        <button id="askStop" class="btn ghost hidden" type="button">Stop</button>
+        <button id="chatClear" class="btn ghost hidden" type="button">Clear</button>
+      </div>
+    </form>
+    <p class="hint">The agent chooses the lookups itself (hashtag crawl, commenters &amp; likers, profiles, search) and shows a LangSmith-style trace: every chain, LLM call and tool call with its timing, tokens, reasoning, input and output; each lookup is a few requests to Instagram. What it finds also fills the posts and accounts below.</p>
+  </section>
+
+  <section class="card composer">
+    <label class="composer-label" for="tagInput">Hashtags</label>
+    <div class="chips" id="chips">
+      <input id="tagInput" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Type a hashtag and press Enter, space or comma… e.g. tea, #ceylontea">
+    </div>
+    <div class="controls">
+      <label>Posts per hashtag <input id="maxPosts" type="number" min="1" max="500" value="60"></label>
+      <label>Max scrolls <input id="maxScrolls" type="number" min="0" max="30" value="5"></label>
+      <button id="go" class="btn primary" disabled>Scrape</button>
+    </div>
+    <p class="hint">Each scroll loads about 24 more posts and counts as one request to Instagram. Keep it modest.</p>
+  </section>
+
+  <section class="card progress hidden" id="progress">
+    <div class="story-ring"><div class="story-inner" id="ringTag">#</div></div>
+    <div class="ptext">
+      <strong id="ptitle">Starting…</strong>
+      <span id="pmeta"></span>
+      <div class="tagline" id="tagProgress"></div>
+    </div>
+    <button id="cancel" class="btn ghost">Stop</button>
+  </section>
+
+  <section id="error" class="card error hidden"></section>
+
+  <section id="results" class="hidden">
+    <div class="card stats">
+      <div class="stat"><b id="sPosts">0</b><span>posts</span></div>
+      <div class="stat"><b id="sUsers">0</b><span>posters</span></div>
+      <div class="stat eng hidden"><b id="sCommenters">0</b><span>commenters</span></div>
+      <div class="stat eng hidden"><b id="sLikers">0</b><span>likers</span></div>
+      <div class="stat"><b id="sTags">0</b><span>hashtags</span></div>
+      <div class="actions">
+        <button id="copyUsers" class="btn">Copy usernames</button>
+        <button id="dlCsv" class="btn">CSV</button>
+        <button id="dlJson" class="btn">JSON</button>
+      </div>
+    </div>
+    <div class="tagsummary" id="tagSummary"></div>
+
+    <div class="card engage" id="engagePanel">
+      <div class="engage-text">
+        <strong>Commenters &amp; likers</strong>
+        <div class="usub">Fetch who commented on and who liked the posts above. About two requests per post; the first ~100 likers of each post are available.</div>
+      </div>
+      <div class="controls">
+        <label>Posts <input id="engPosts" type="number" min="1" max="100" value="30"></label>
+        <label>Comments per post <input id="engComments" type="number" min="0" max="500" value="30"></label>
+        <label class="check"><input id="engLikers" type="checkbox" checked> Likers</label>
+        <button id="engGo" class="btn primary">Fetch engagement</button>
+      </div>
+      <div class="usub" id="engStatus"></div>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="posts">POSTS</button>
+      <button class="tab" data-tab="users">ACCOUNTS</button>
+    </nav>
+    <div id="postsGrid" class="grid"></div>
+    <div id="usersPanel" class="hidden">
+      <div class="roles" id="roles">
+        <button class="pill active" data-role="all">All</button>
+        <button class="pill" data-role="poster">Posters</button>
+        <button class="pill" data-role="commenter">Commenters</button>
+        <button class="pill" data-role="liker">Likers</button>
+        <span class="usub" id="roleCount"></span>
+      </div>
+      <input id="userFilter" class="filter" type="search" placeholder="Filter accounts…">
+      <div id="usersList" class="users"></div>
+    </div>
+  </section>
+</main>
+
+<main class="wrap wide hidden" id="viewMap">
+  <section class="card mapform">
+    <div class="agent-head">
+      <strong>Hashtag map</strong>
+      <span class="usub" id="mapDb">Checking the graph database…</span>
+    </div>
+    <form class="mapctl" id="mapForm">
+      <label class="seedbox">Seed hashtags
+        <input id="mapSeeds" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. concertslk  (up to 3, comma separated)">
+      </label>
+      <label>Nodes <input id="mapNodes" type="number" min="5" max="100" value="50"></label>
+      <label>Searches <input id="mapSearches" type="number" min="1" max="30" value="10"></label>
+      <label>Posts per search <input id="mapPosts" type="number" min="12" max="96" step="12" value="24"></label>
+      <button id="mapGo" class="btn primary" type="submit" disabled>Build map</button>
+      <button id="mapStop" class="btn ghost hidden" type="button">Stop</button>
+    </form>
+    <div class="mapsaved">
+      <select id="mapList" aria-label="Saved maps"><option value="">Saved maps…</option></select>
+      <button id="mapDelete" class="btn ghost" type="button" disabled>Delete</button>
+      <button id="mapJson" class="btn ghost" type="button" disabled>JSON</button>
+    </div>
+    <p class="hint">The agent searches the seed hashtag, reads the other hashtags in those posts and adds the related ones to a graph stored on this machine. Then it goes hashtag by hashtag: every hashtag it searches links to the hashtags already in the graph and brings new ones, until the graph has the node limit or the searches are used up. A hashtag's count is how many collected posts, found by searching other hashtags, carry it. Each search is one or two requests to Instagram.</p>
+  </section>
+
+  <section id="mapError" class="card error hidden"></section>
+
+  <div id="mapResult" class="hidden">
+    <section class="card mapstats" id="mapStats"></section>
+    <section class="card mapgraph">
+      <div class="gtools">
+        <span class="glegend">
+          <span><i class="gdot seed"></i>Seed</span>
+          <span><i class="gdot searched"></i>Searched</span>
+          <span><i class="gdot found"></i>Discovered</span>
+          <span class="muted">size and number = count · line width = posts linking two hashtags</span>
+        </span>
+        <span class="gctl">
+          <label>Links ≥ <input id="mapMinLink" type="number" min="1" value="1"> posts</label>
+          <button id="mapFit" class="btn ghost" type="button">Fit</button>
+          <button id="mapReset" class="btn ghost" type="button">Reset</button>
+        </span>
+      </div>
+      <div class="gview" id="mapGraph"></div>
+      <div class="gdetail" id="mapDetail"></div>
+    </section>
+    <div class="mapcols">
+      <section class="card maptable">
+        <div class="agent-head"><strong>Nodes</strong><span class="usub" id="mapTableNote"></span></div>
+        <table id="mapTable"></table>
+      </section>
+      <section class="card mapagent">
+        <div class="agent-head"><strong>Agent</strong><span class="usub" id="mapAgentNote"></span></div>
+        <div class="mapsummary msg agent hidden" id="mapSummary"></div>
+        <div class="chat maptrace hidden" id="mapTrace"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card">
+    <button class="modal-close" data-close aria-label="Close">×</button>
+    <div class="modal-media" id="modalMedia"></div>
+    <div class="modal-side" id="modalSide"></div>
+  </div>
+</div>
+
+<script src="/static/graph.js?v=10"></script>
+<script src="/static/app.js?v=10"></script>
+</body>
+</html>

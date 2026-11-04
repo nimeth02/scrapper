@@ -2,15 +2,15 @@
 
 The MCP servers in ``app.servers`` are thin wrappers over this package::
 
-    from app.instagram import BrowserSession, api, auth, get_instagram_settings
+    from app.instagram import BrowserSession, auth, get_instagram_settings, profiles
 
     settings = get_instagram_settings()
     session = BrowserSession(settings, headless=False, storage_state=settings.session_file)
     await auth.login(session, "user", "pass", wait_seconds=45)
-    profile = await api.get_profile(session, "natgeo")
+    profile = await profiles.get_profile(session, "natgeo")
 """
 
-from app.instagram import api, auth
+from app.instagram import api, auth, engagement, hashtags, profiles
 from app.instagram.api import InstagramAPIError, LoginRequired, RateLimited
 from app.instagram.auth import LoginError, LoginOutcome
 from app.instagram.browser import BrowserSession
@@ -28,5 +28,8 @@ __all__ = [
     "SharedSession",
     "api",
     "auth",
+    "engagement",
     "get_instagram_settings",
+    "hashtags",
+    "profiles",
 ]

@@ -77,3 +77,15 @@ def test_build_llm_applies_fallback_settings():
 def test_build_llm_shares_health_across_instances():
     s = settings(gemini_api_key="g")
     assert build_llm(s).policy.health is build_llm(s).policy.health
+
+
+def test_reasoning_asks_gemini_for_its_thoughts():
+    plain = build_candidates(settings(gemini_api_key="g", groq_api_key="q"))
+    assert plain[0].chat_model.include_thoughts is None and plain[0].chat_model.thinking_budget is None
+    thinking = build_candidates(settings(gemini_api_key="g", groq_api_key="q"), reasoning=True)
+    gemini = [c.chat_model for c in thinking if c.provider == "gemini"]
+    assert all(m.include_thoughts is True and m.thinking_budget == 1024 for m in gemini)
+    groq = [c.chat_model for c in thinking if c.provider == "groq"]
+    assert all(m.reasoning_format is None for m in groq)  # their reasoning models return it anyway
+    off = build_candidates(settings(gemini_api_key="g", llm_thinking_budget=0), reasoning=True)
+    assert off[0].chat_model.include_thoughts is None

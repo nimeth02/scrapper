@@ -10,7 +10,7 @@ Typical use::
 """
 
 from app.llm.errors import AllModelsFailedError, ErrorKind, classify_error
-from app.llm.factory import LLMConfigurationError, build_candidates, build_llm, get_llm, primary_chat_model
+from app.llm.factory import LLMConfigurationError, build_candidates, build_llm, get_llm, get_reasoning_llm, primary_chat_model
 from app.llm.fallback import FallbackChatModel, FallbackPolicy, HealthTracker, ModelCandidate
 
 __all__ = [
@@ -25,5 +25,6 @@ __all__ = [
     "build_llm",
     "classify_error",
     "get_llm",
+    "get_reasoning_llm",
     "primary_chat_model",
 ]

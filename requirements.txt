@@ -6,5 +6,6 @@ pydantic-settings
 python-dotenv
 mcp>=1.10,<2
 playwright>=1.50
+real-ladybug>=0.15,<1
 pytest
 pytest-asyncio

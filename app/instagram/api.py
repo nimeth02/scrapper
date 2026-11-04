@@ -219,6 +219,21 @@ def parse_profile(user: dict) -> dict:
     }
 
 
+def parse_user(user: dict | None) -> dict:
+    """The account fields Instagram attaches to posts, comments, likers and search hits."""
+    user = user or {}
+    username = user.get("username")
+    return {
+        "username": username,
+        "user_id": _str_id(user.get("pk") or user.get("id")),
+        "full_name": user.get("full_name"),
+        "is_private": user.get("is_private"),
+        "is_verified": user.get("is_verified"),
+        "profile_pic_url": user.get("profile_pic_url"),
+        "profile_url": f"{BASE_URL}/{username}/" if username else None,
+    }
+
+
 def parse_comment(comment: dict) -> dict:
     user = comment.get("user") or {}
     return {
@@ -227,6 +242,10 @@ def parse_comment(comment: dict) -> dict:
         "created_at": _ts(comment.get("created_at")),
         "username": user.get("username"),
         "user_id": _str_id(user.get("pk") or user.get("id")),
+        "full_name": user.get("full_name"),
+        "is_private": user.get("is_private"),
+        "is_verified": user.get("is_verified"),
+        "profile_pic_url": user.get("profile_pic_url"),
         "likes": comment.get("comment_like_count"),
         "replies": comment.get("child_comment_count"),
     }
@@ -364,6 +383,15 @@ async def get_comments(
             break
         cursor = next_cursor
     return {"shortcode": code, "comment_count": total, "comments": comments[:limit], "next_min_id": cursor}
+
+
+async def get_likers(session: BrowserSession, post: str) -> dict:
+    """Who liked a post (shortcode or URL). Instagram's web endpoint exposes the first hundred or so
+    likers plus the total, with no way to page further."""
+    code = shortcode_from_url(post)
+    data = await fetch_json(session, f"/api/v1/media/{shortcode_to_media_id(code)}/likers/")
+    likers = [parse_user(u) for u in data.get("users") or []]
+    return {"shortcode": code, "like_count": data.get("user_count"), "likers": likers}
 
 
 async def get_hashtag(session: BrowserSession, tag: str) -> dict:

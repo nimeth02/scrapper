@@ -117,6 +117,10 @@ def test_parse_comment() -> None:
         "created_at": "2023-11-14T22:13:20+00:00",
         "username": "bob",
         "user_id": "1",
+        "full_name": None,
+        "is_private": None,
+        "is_verified": None,
+        "profile_pic_url": None,
         "likes": 2,
         "replies": 1,
     }

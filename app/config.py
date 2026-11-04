@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     llm_cooldown_seconds: float = Field(default=30.0, ge=0)
     # After a model turns out to be unknown or retired it is skipped for this long.
     llm_unavailable_cooldown_seconds: float = Field(default=600.0, ge=0)
+    # Reasoning shown by the agent: Gemini thinks (and returns a summary of its thoughts) only with a
+    # thinking budget. 0 turns Gemini's thoughts off; Groq's reasoning models return theirs regardless.
+    llm_thinking_budget: int = Field(default=1024, ge=0)
 
     # ---- Tracing (optional) ------------------------------------------------
     langsmith_tracing: bool = False
@@ -65,12 +68,21 @@ class Settings(BaseSettings):
     langsmith_project: str = "scrapper"
     langsmith_endpoint: str = "https://api.smith.langchain.com"
 
+    # ---- Hashtag maps ------------------------------------------------------
+    # Embedded graph database (LadybugDB) holding the hashtag maps; relative to the project root.
+    graph_db_path: Path = Path("data/hashtag_graph")
+
     @field_validator("gemini_api_key", "groq_api_key", "gemini_base_url", "langsmith_api_key", mode="before")
     @classmethod
     def _blank_to_none(cls, v):  # noqa: ANN001
         if isinstance(v, str) and not v.strip():
             return None
         return v
+
+    @field_validator("graph_db_path", mode="after")
+    @classmethod
+    def _under_project(cls, v: Path) -> Path:
+        return v if v.is_absolute() else PROJECT_ROOT / v
 
     # ---- Derived helpers ---------------------------------------------------
     @property

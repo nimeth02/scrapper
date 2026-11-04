@@ -26,6 +26,12 @@ _LOGIN_ERRORS = re.compile(
     re.I,
 )
 _CODE_INPUT = 'input[name="verificationCode"], input[autocomplete="one-time-code"]'
+# Instagram has shipped two login forms: the classic one (username / password / <button type=submit>)
+# and the 2026 one (email / pass / <input type=submit>). Match both.
+_USERNAME_INPUT = 'input[name="username"], input[name="email"], input[autocomplete^="username"]'
+_PASSWORD_INPUT = 'input[name="password"], input[name="pass"], input[type="password"]'
+_SUBMIT = 'form button[type="submit"]:visible, form input[type="submit"]:visible'
+_LOGIN_BUTTON = re.compile(r"^log in$", re.I)
 
 
 class LoginError(Exception):
@@ -104,6 +110,15 @@ async def _error_text(page: Page) -> str:
 
 
 # ---- flows -------------------------------------------------------------------
+async def _submit_login_form(page: Page) -> None:
+    """Click whichever submit control is visible; the 2026 form hides its <input type=submit> and
+    renders a role=button "Log in" instead. Enter in the password field always works as a last resort."""
+    for locator in (page.locator(_SUBMIT), page.get_by_role("button", name=_LOGIN_BUTTON)):
+        if await _click_if_present(page, locator, timeout_ms=5000):
+            return
+    await page.locator(_PASSWORD_INPUT).first.press("Enter")
+
+
 async def login(session: BrowserSession, username: str, password: str, *, wait_seconds: float) -> LoginOutcome:
     """Submit the password form. Returns quickly with ``two_factor_required`` / ``challenge_required``
     when Instagram asks for more; finish those with :func:`submit_two_factor_code` or by hand."""
@@ -126,10 +141,10 @@ async def login(session: BrowserSession, username: str, password: str, *, wait_s
         page = await session.goto(LOGIN_URL)
         await dismiss_dialogs(page)
 
-    await page.wait_for_selector('input[name="username"]', state="visible")
-    await page.fill('input[name="username"]', username)
-    await page.fill('input[name="password"]', password)
-    await page.click('button[type="submit"]')
+    await page.wait_for_selector(_USERNAME_INPUT, state="visible")
+    await page.locator(_USERNAME_INPUT).first.fill(username)
+    await page.locator(_PASSWORD_INPUT).first.fill(password)
+    await _submit_login_form(page)
 
     state = await wait_for_state(page, session, wait_seconds)
     return await _finish(session, page, state, username, wait_seconds)
